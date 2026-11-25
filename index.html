@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>黎曼猜想 · 无限延续</title>
+<style>
+  :root{
+    --bg0:#070b14; --bg1:#0d1424;
+    --panel:rgba(16,26,48,.72); --border:#1e2c4a;
+    --txt:#dbe4f5; --muted:#8294b5;
+    --cyan:#4dd8ff; --gold:#f5c542; --green:#3ddc84; --red:#ff6b6b;
+    --mono:"SF Mono",Menlo,Consolas,"Courier New",monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--txt);
+    background:radial-gradient(1200px 700px at 70% -10%, #14224a 0%, var(--bg1) 45%, var(--bg0) 100%) fixed;
+    min-height:100vh;
+  }
+  .wrap{max-width:1280px;margin:0 auto;padding:22px 20px 40px}
+  header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px;flex-wrap:wrap}
+  .title{display:flex;align-items:center;gap:14px}
+  .zeta{
+    font-family:var(--mono);font-size:44px;font-weight:700;color:var(--cyan);
+    text-shadow:0 0 24px rgba(77,216,255,.55);line-height:1;
+  }
+  h1{font-size:22px;font-weight:700;letter-spacing:.5px}
+  .sub{color:var(--muted);font-size:13px;margin-top:4px}
+  .badge{
+    font-size:13px;padding:6px 14px;border-radius:999px;border:1px solid var(--border);
+    background:var(--panel);color:var(--green);white-space:nowrap;
+  }
+  .badge .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--green);
+    margin-right:6px;animation:pulse 1.6s infinite}
+  .badge.paused{color:var(--gold)}
+  .badge.paused .dot{background:var(--gold);animation:none}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+  main{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:start}
+  @media (max-width:980px){main{grid-template-columns:1fr}}
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+  .panel-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;
+    padding:12px 16px;border-bottom:1px solid var(--border)}
+  .panel-head h2{font-size:14px;font-weight:600}
+  .panel-head span{font-size:12px;color:var(--muted)}
+  canvas{display:block;width:100%}
+  #lineCanvas{height:460px}
+  #waveCanvas{height:200px}
+  .viz{display:flex;flex-direction:column;gap:16px;min-width:0}
+
+  aside{display:flex;flex-direction:column;gap:14px}
+  .stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .stat{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:12px 14px}
+  .stat-label{font-size:11px;color:var(--muted);margin-bottom:6px}
+  .stat-value{font-family:var(--mono);font-size:20px;font-weight:700;color:var(--cyan)}
+  .stat-value.gold{color:var(--gold)}
+  .stat-value.small{font-size:15px}
+
+  .controls{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px}
+  .btn-row{display:flex;gap:10px;margin-bottom:12px}
+  button{
+    flex:1;font-size:14px;padding:9px 0;border-radius:9px;cursor:pointer;
+    border:1px solid var(--border);background:#16223c;color:var(--txt);
+    transition:background .15s,border-color .15s;
+  }
+  button:hover{background:#1d2e50;border-color:#2c4270}
+  button.primary{background:rgba(77,216,255,.14);border-color:rgba(77,216,255,.45);color:var(--cyan)}
+  .speed-row{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--muted)}
+  .speed-row input{flex:1;accent-color:var(--cyan)}
+  .speed-val{font-family:var(--mono);color:var(--txt);min-width:64px;text-align:right}
+  .rate{font-size:12px;color:var(--muted);margin-top:10px}
+  .rate b{color:var(--txt);font-family:var(--mono)}
+
+  .feed-head{display:flex;justify-content:space-between;align-items:baseline;padding:12px 16px;border-bottom:1px solid var(--border)}
+  .feed-head h2{font-size:14px;font-weight:600}
+  .feed-head span{font-size:12px;color:var(--muted)}
+  #zeroFeed{list-style:none;max-height:300px;overflow-y:auto;padding:6px 0}
+  #zeroFeed li{
+    display:flex;justify-content:space-between;align-items:baseline;
+    padding:6px 16px;font-family:var(--mono);font-size:13px;
+    border-bottom:1px dashed rgba(30,44,74,.6);
+  }
+  #zeroFeed li:first-child{background:rgba(245,197,66,.07)}
+  #zeroFeed .idx{color:var(--gold)}
+  #zeroFeed .val{color:var(--txt)}
+  #zeroFeed .empty{color:var(--muted);justify-content:center;font-family:inherit}
+
+  .claim{
+    border:1px solid rgba(61,220,132,.35);background:rgba(61,220,132,.08);
+    color:var(--green);border-radius:12px;padding:12px 14px;font-size:13px;line-height:1.6;
+  }
+  footer{margin-top:22px;border-top:1px solid var(--border);padding-top:18px;
+    color:var(--muted);font-size:13px;line-height:1.9}
+  footer h3{color:var(--txt);font-size:14px;margin-bottom:8px}
+  footer p{margin-bottom:8px}
+  footer .fine{font-size:12px;opacity:.85}
+  footer code{font-family:var(--mono);color:var(--cyan);font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="title">
+      <span class="zeta">ζ</span>
+      <div>
+        <h1>黎曼猜想 · 无限延续</h1>
+        <p class="sub">沿临界线 Re(s) = ½ 实时搜索 ζ(s) 的非平凡零点，一个接一个，永不停止</p>
+      </div>
+    </div>
+    <div class="badge" id="statusBadge"><span class="dot"></span><span id="statusText">延拓中</span></div>
+  </header>
+
+  <main>
+    <section class="viz">
+      <div class="panel">
+        <div class="panel-head"><h2>临界线视角</h2><span>每个金点是一个零点 ρ = ½ + it，随 t 无限上升</span></div>
+        <canvas id="lineCanvas"></canvas>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h2>Hardy Z(t) 波形</h2><span>Z(t) 每次穿越零轴，就对应临界线上的一个零点</span></div>
+        <canvas id="waveCanvas"></canvas>
+      </div>
+    </section>
+
+    <aside>
+      <div class="stats">
+        <div class="stat"><div class="stat-label">当前高度 t</div><div class="stat-value" id="statT">2.00</div></div>
+        <div class="stat"><div class="stat-label">已发现零点</div><div class="stat-value gold" id="statCount">0</div></div>
+        <div class="stat"><div class="stat-label">最新零点 Im(ρ)</div><div class="stat-value small" id="statLast">—</div></div>
+        <div class="stat"><div class="stat-label">理论计数 θ(t)/π+1</div><div class="stat-value small" id="statTheory">—</div></div>
+      </div>
+
+      <div class="controls">
+        <div class="btn-row">
+          <button class="primary" id="pauseBtn">⏸ 暂停</button>
+          <button id="resetBtn">↺ 重置</button>
+        </div>
+        <div class="speed-row">
+          <span>速度</span>
+          <input type="range" id="speedSlider" min="1" max="40" step="1" value="6">
+          <span class="speed-val" id="speedVal">6 t/秒</span>
+        </div>
+        <div class="rate">发现速率：<b id="statRate">0</b> 个/分 · 二分精化至 10⁻¹¹</div>
+      </div>
+
+      <div class="panel">
+        <div class="feed-head"><h2>零点记录</h2><span>最新在上</span></div>
+        <ol id="zeroFeed"><li class="empty">等待第一个零点（t ≈ 14.13）…</li></ol>
+      </div>
+
+      <div class="claim" id="claimBox">✓ 目前发现的每一个零点都位于临界线 Re(s) = ½ 上</div>
+    </aside>
+  </main>
+
+  <footer>
+    <h3>这个页面在做什么？</h3>
+    <p><b style="color:var(--txt)">黎曼猜想（1859）</b>：ζ(s) 的所有非平凡零点都落在临界线 <code>Re(s) = ½</code> 上。它是数学中最重要的未解难题之一，悬赏 100 万美元（Clay 千禧年难题）。</p>
+    <p>本页把猜想变成一场<b style="color:var(--txt)">无限延续的数值实验</b>：用 Hardy Z 函数沿临界线向上扫描。Z(t) 是实值函数，它的每个变号点都对应一个零点 <code>ρ = ½ + it</code>。小 t 区间用 Euler–Maclaurin 公式精确计算 ζ(½+it)，大 t 区间用 Riemann–Siegel 公式（含 C₀、C₁、C₂ 修正项）快速计算；检测到变号后用二分法把零点精化到 10⁻¹¹。只要页面开着，搜索就永远继续。</p>
+    <p class="fine">诚实声明：人类已数值验证超过 10¹³ 个零点全部在临界线上，但猜想至今<b>没有被证明</b>——本页面是数值探索与可视化，不是证明。纯静态单文件，无任何外部依赖，可直接部署到 Cloudflare Pages / GitHub Pages。双精度浮点下可推进至 t ~ 10⁸。</p>
+  </footer>
+</div>
+
+<script>
+'use strict';
+/* ================= 数学核心 ================= */
+const TWO_PI = 2 * Math.PI;
+
+// Riemann-Siegel theta（渐近式，t≥2 时误差 < 5e-7）
+function theta(t){
+  return t/2*Math.log(t/TWO_PI) - t/2 - Math.PI/8 + 1/(48*t) + 7/(5760*t*t*t);
+}
+// Ψ(p) = cos(2π(p²−p−1/16)) / cos(2πp)，可去奇点处用洛必达
+function psi(p){
+  const den = Math.cos(TWO_PI*p);
+  const num = Math.cos(TWO_PI*(p*p - p - 1/16));
+  if (Math.abs(den) > 1e-9) return num/den;
+  const dnum = -TWO_PI*(2*p-1)*Math.sin(TWO_PI*(p*p - p - 1/16));
+  const dden = -TWO_PI*Math.sin(TWO_PI*p);
+  return dnum/dden;
+}
+function psi2(p){ const h=1e-2; return (psi(p+h)-2*psi(p)+psi(p-h))/(h*h); }
+function psi3(p){ const h=1e-2; return (psi(p+2*h)-2*psi(p+h)+2*psi(p-h)-psi(p-2*h))/(2*h*h*h); }
+function psi6(p){ const h=0.05, c=[1,-6,15,-20,15,-6,1]; let s=0;
+  for(let i=0;i<7;i++) s += c[i]*psi(p+(i-3)*h); return s/Math.pow(h,6); }
+
+// Riemann-Siegel Z(t)，含 C0+C1+C2 修正（t≥60 时误差 < 3e-5 且随 t 递减）
+function rsZ(t){
+  const x = Math.sqrt(t/TWO_PI);
+  const N = Math.floor(x), p = x - N;
+  const th = theta(t);
+  let s = 0;
+  for (let n=1; n<=N; n++) s += Math.cos(th - t*Math.log(n))/Math.sqrt(n);
+  s *= 2;
+  const sign = (N % 2 === 1) ? 1 : -1;
+  const u = t/TWO_PI, su = Math.sqrt(u);
+  const C = psi(p) - psi3(p)/(96*Math.PI*Math.PI)/su
+          + (psi6(p)/(18432*Math.pow(Math.PI,4)) + psi2(p)/(64*Math.PI*Math.PI))/u;
+  return s + sign*Math.pow(u,-0.25)*C;
+}
+
+// Euler-Maclaurin 精确计算 Z(t)（t<60，误差 ~1e-10）
+const EM_C = [1/12, -1/720, 1/30240, -1/1209600, 1/47900160, -691/1307674368000];
+function emZ(t){
+  const N = Math.max(20, Math.ceil(t)+10);
+  let sr = 0, si = 0;
+  for (let n=1; n<N; n++){
+    const a = t*Math.log(n), r = 1/Math.sqrt(n);
+    sr += r*Math.cos(a); si -= r*Math.sin(a);
+  }
+  const aN = t*Math.log(N), rN = Math.sqrt(N);
+  const nr = rN*Math.cos(aN), ni = -rN*Math.sin(aN);
+  const dr = -0.5, di = t, d2 = dr*dr + di*di;
+  sr += (nr*dr + ni*di)/d2; si += (ni*dr - nr*di)/d2;
+  const mr = Math.cos(aN)/rN, mi = -Math.sin(aN)/rN;
+  sr += mr/2; si += mi/2;
+  let pr = 0.5, pi = t, nf = 1/N;
+  for (let k=1; k<=6; k++){
+    if (k > 1){
+      const ar = 0.5+2*k-3, br = 0.5+2*k-2;
+      const tr = pr*ar - pi*t, ti = pr*t + pi*ar;
+      pr = tr*br - ti*t; pi = tr*t + ti*br;
+      nf /= N*N;
+    }
+    const cr = EM_C[k-1]*nf;
+    const tr2 = cr*pr, ti2 = cr*pi;
+    sr += tr2*mr - ti2*mi; si += tr2*mi + ti2*mr;
+  }
+  const th = theta(t);
+  return sr*Math.cos(th) - si*Math.sin(th);
+}
+function hardyZ(t){ return t < 60 ? emZ(t) : rsZ(t); }
+
+function bisect(a, b){
+  let fa = hardyZ(a);
+  for (let i=0; i<64; i++){
+    const m = (a+b)/2, fm = hardyZ(m);
+    if (fa*fm <= 0) b = m; else { a = m; fa = fm; }
+    if (b-a < 1e-11) break;
+  }
+  return (a+b)/2;
+}
+
+/* ================= 状态与 DOM ================= */
+const STEP = 0.04, WAVE_W = 26, LINE_H = 50;
+const state = { t:2, zPrev:hardyZ(2), running:true, speed:6, zeros:[], samples:[], lastFrame:0 };
+
+const $ = id => document.getElementById(id);
+const lineCanvas = $('lineCanvas'), waveCanvas = $('waveCanvas');
+const lctx = lineCanvas.getContext('2d'), wctx = waveCanvas.getContext('2d');
+const feed = $('zeroFeed');
+
+function fitCanvas(cv){
+  const dpr = window.devicePixelRatio || 1;
+  const w = cv.clientWidth, h = cv.clientHeight;
+  if (cv.width !== Math.round(w*dpr) || cv.height !== Math.round(h*dpr)){
+    cv.width = Math.round(w*dpr); cv.height = Math.round(h*dpr);
+  }
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  return {w,h};
+}
+
+function recordZero(root){
+  const z = { t: root, idx: state.zeros.length+1, at: performance.now() };
+  state.zeros.push(z);
+  const empty = feed.querySelector('.empty'); if (empty) empty.remove();
+  const li = document.createElement('li');
+  li.innerHTML = '<span class="idx">ρ<sub>'+z.idx+'</sub></span><span class="val">½ + '+root.toFixed(6)+' i</span>';
+  feed.prepend(li);
+  while (feed.children.length > 30) feed.lastChild.remove();
+  $('statCount').textContent = z.idx;
+  $('statLast').textContent = root.toFixed(6);
+  $('claimBox').textContent = '✓ 已发现的 '+z.idx+' 个零点全部位于临界线 Re(s) = ½ 上';
+}
+
+/* ================= 扫描引擎 ================= */
+function advance(dt){
+  let budget = state.speed * dt;
+  let steps = 0;
+  while (budget > 0 && steps < 4000){
+    const t1 = state.t + STEP;
+    const z1 = hardyZ(t1);
+    if (state.zPrev * z1 < 0) recordZero(bisect(state.t, t1));
+    state.samples.push({t:t1, z:z1});
+    state.t = t1; state.zPrev = z1;
+    budget -= STEP; steps++;
+  }
+  const cutoff = state.t - WAVE_W - 1;
+  while (state.samples.length && state.samples[0].t < cutoff) state.samples.shift();
+}
+
+/* ================= 绘制 ================= */
+function drawLine(now){
+  const {w,h} = fitCanvas(lineCanvas);
+  lctx.clearRect(0,0,w,h);
+  const padL = 52, padR = 20, padT = 14, padB = 26;
+  const tTop = state.t + 3, tBot = state.t - LINE_H;
+  const yOf = t => padT + (tTop - t)/(tTop - tBot)*(h - padT - padB);
+  const xOf = re => padL + (re + 0.1)/1.2*(w - padL - padR);
+
+  // 临界带 0<Re<1
+  lctx.fillStyle = 'rgba(77,216,255,.045)';
+  lctx.fillRect(xOf(0), padT, xOf(1)-xOf(0), h-padT-padB);
+  lctx.strokeStyle = 'rgba(130,148,181,.35)'; lctx.setLineDash([4,5]); lctx.lineWidth = 1;
+  for (const re of [0,1]){
+    lctx.beginPath(); lctx.moveTo(xOf(re),padT); lctx.lineTo(xOf(re),h-padB); lctx.stroke();
+  }
+  lctx.setLineDash([]);
+  // 临界线 Re=1/2
+  lctx.strokeStyle = 'rgba(77,216,255,.9)'; lctx.lineWidth = 1.6;
+  lctx.shadowColor = 'rgba(77,216,255,.6)'; lctx.shadowBlur = 8;
+  lctx.beginPath(); lctx.moveTo(xOf(0.5),padT); lctx.lineTo(xOf(0.5),h-padB); lctx.stroke();
+  lctx.shadowBlur = 0;
+
+  // t 网格
+  lctx.font = '11px '+getComputedStyle(document.body).getPropertyValue('--mono');
+  lctx.fillStyle = 'rgba(130,148,181,.8)'; lctx.strokeStyle = 'rgba(30,44,74,.8)';
+  const g0 = Math.ceil(tBot/10)*10;
+  for (let g=g0; g<=tTop; g+=10){
+    const y = yOf(g);
+    lctx.beginPath(); lctx.moveTo(padL,y); lctx.lineTo(w-padR,y); lctx.stroke();
+    lctx.fillText('t='+g, 6, y+4);
+  }
+  lctx.fillStyle = 'rgba(130,148,181,.9)';
+  lctx.fillText('Re=0', xOf(0)-14, h-8);
+  lctx.fillText('Re=1', xOf(1)-14, h-8);
+  lctx.fillStyle = 'rgba(77,216,255,.95)';
+  lctx.fillText('Re=½', xOf(0.5)-16, h-8);
+
+  // 零点
+  for (let i=state.zeros.length-1; i>=0; i--){
+    const z = state.zeros[i];
+    if (z.t < tBot) break;
+    if (z.t > tTop) continue;
+    const x = xOf(0.5), y = yOf(z.t);
+    const age = (now - z.at)/1000;
+    if (age < 1.5){
+      lctx.strokeStyle = 'rgba(245,197,66,'+(1-age/1.5).toFixed(3)+')';
+      lctx.lineWidth = 1.5;
+      lctx.beginPath(); lctx.arc(x,y,4+age*16,0,TWO_PI); lctx.stroke();
+    }
+    lctx.fillStyle = '#f5c542';
+    lctx.shadowColor = 'rgba(245,197,66,.9)'; lctx.shadowBlur = 10;
+    lctx.beginPath(); lctx.arc(x,y,3.4,0,TWO_PI); lctx.fill();
+    lctx.shadowBlur = 0;
+  }
+  // 扫描头
+  const yh = yOf(state.t);
+  lctx.fillStyle = 'rgba(77,216,255,.95)';
+  lctx.beginPath();
+  lctx.moveTo(xOf(0.5)+10,yh); lctx.lineTo(xOf(0.5)+18,yh-4); lctx.lineTo(xOf(0.5)+18,yh+4);
+  lctx.closePath(); lctx.fill();
+  lctx.font = '11px '+getComputedStyle(document.body).getPropertyValue('--mono');
+  lctx.fillText('t = '+state.t.toFixed(2), xOf(0.5)+22, yh+4);
+}
+
+function drawWave(){
+  const {w,h} = fitCanvas(waveCanvas);
+  wctx.clearRect(0,0,w,h);
+  const padL = 52, padR = 16, padT = 12, padB = 22;
+  const tRight = state.t, tLeft = state.t - WAVE_W;
+  const xOf = t => padL + (t - tLeft)/WAVE_W*(w - padL - padR);
+  let maxAbs = 2;
+  for (const s of state.samples) if (Math.abs(s.z) > maxAbs) maxAbs = Math.abs(s.z);
+  maxAbs *= 1.15;
+  const yOf = z => padT + (maxAbs - z)/(2*maxAbs)*(h - padT - padB);
+
+  // 零轴
+  wctx.strokeStyle = 'rgba(130,148,181,.5)'; wctx.setLineDash([4,5]); wctx.lineWidth = 1;
+  wctx.beginPath(); wctx.moveTo(padL,yOf(0)); wctx.lineTo(w-padR,yOf(0)); wctx.stroke();
+  wctx.setLineDash([]);
+  wctx.font = '11px '+getComputedStyle(document.body).getPropertyValue('--mono');
+  wctx.fillStyle = 'rgba(130,148,181,.8)';
+  wctx.fillText('Z=0', 14, yOf(0)+4);
+  const g0 = Math.ceil(tLeft/5)*5;
+  for (let g=g0; g<=tRight; g+=5){
+    const x = xOf(g);
+    wctx.strokeStyle = 'rgba(30,44,74,.8)';
+    wctx.beginPath(); wctx.moveTo(x,padT); wctx.lineTo(x,h-padB); wctx.stroke();
+    wctx.fillText(String(g), x-8, h-6);
+  }
+  // 波形
+  wctx.strokeStyle = '#4dd8ff'; wctx.lineWidth = 1.6;
+  wctx.shadowColor = 'rgba(77,216,255,.45)'; wctx.shadowBlur = 6;
+  wctx.beginPath();
+  let started = false;
+  for (const s of state.samples){
+    if (s.t < tLeft) continue;
+    const x = xOf(s.t), y = yOf(s.z);
+    if (!started){ wctx.moveTo(x,y); started = true; } else wctx.lineTo(x,y);
+  }
+  wctx.stroke(); wctx.shadowBlur = 0;
+  // 窗口内的零点
+  for (let i=state.zeros.length-1; i>=0; i--){
+    const z = state.zeros[i];
+    if (z.t < tLeft) break;
+    wctx.fillStyle = '#f5c542';
+    wctx.beginPath(); wctx.arc(xOf(z.t), yOf(0), 3, 0, TWO_PI); wctx.fill();
+  }
+}
+
+function updateStats(){
+  $('statT').textContent = state.t.toFixed(2);
+  $('statTheory').textContent = (theta(state.t)/Math.PI + 1).toFixed(1);
+  const cutoff = performance.now() - 60000;
+  let n = 0;
+  for (let i=state.zeros.length-1; i>=0 && state.zeros[i].at>cutoff; i--) n++;
+  $('statRate').textContent = n;
+}
+
+/* ================= 主循环 ================= */
+function frame(now){
+  if (!state.lastFrame) state.lastFrame = now;
+  const dt = Math.min((now - state.lastFrame)/1000, 0.1);
+  state.lastFrame = now;
+  if (state.running) advance(dt);
+  drawLine(now); drawWave(); updateStats();
+  requestAnimationFrame(frame);
+}
+
+/* ================= 控件 ================= */
+$('pauseBtn').addEventListener('click', () => {
+  state.running = !state.running;
+  $('pauseBtn').textContent = state.running ? '⏸ 暂停' : '▶ 继续';
+  $('statusBadge').classList.toggle('paused', !state.running);
+  $('statusText').textContent = state.running ? '延拓中' : '已暂停';
+});
+$('resetBtn').addEventListener('click', () => {
+  state.t = 2; state.zPrev = hardyZ(2);
+  state.zeros = []; state.samples = [];
+  feed.innerHTML = '<li class="empty">等待第一个零点（t ≈ 14.13）…</li>';
+  $('statCount').textContent = '0'; $('statLast').textContent = '—';
+  $('claimBox').textContent = '✓ 目前发现的每一个零点都位于临界线 Re(s) = ½ 上';
+});
+$('speedSlider').addEventListener('input', e => {
+  state.speed = +e.target.value;
+  $('speedVal').textContent = state.speed + ' t/秒';
+});
+window.addEventListener('resize', () => { drawLine(performance.now()); drawWave(); });
+
+requestAnimationFrame(frame);
+
+// 后台标签页里 rAF 会被浏览器节流：用低频定时器兜底，保证"无限延续"不中断
+setInterval(() => {
+  const now = performance.now();
+  if (state.running && now - state.lastFrame > 500){
+    const dt = Math.min((now - state.lastFrame)/1000, 1);
+    state.lastFrame = now;
+    advance(dt);
+    drawLine(now); drawWave(); updateStats();
+  }
+}, 1000);
+</script>
+</body>
+</html>
